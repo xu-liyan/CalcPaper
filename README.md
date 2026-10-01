@@ -6,7 +6,6 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078D6)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
 ![WebView2](https://img.shields.io/badge/WebView2-Evergreen-0C59A4)
-![Version](https://img.shields.io/badge/version-1.5.0-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 |                   主界面                   |                运算菜单（抽屉）               |
