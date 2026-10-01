@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>CalcPaper</RootNamespace>
+    <AssemblyName>CalcPaper</AssemblyName>
+
+    <!-- 程序集元数据（写入 exe 版本资源；
+         ⚠ 公司名/产品名对应的 MSBuild 属性是 Company / Product：
+         CompanyName / ProductName 不会被 GenerateAssemblyInfo 采用，
+         之前会导致二者默默回退成 AssemblyName。） -->
+    <Version>1.5.0</Version>
+    <Company>CAM</Company>
+    <Product>CalcPaper</Product>
+    <Copyright>GitHub@xu-liyan</Copyright>
+
+    <!-- 应用图标：内嵌到 exe（任务栏 / Alt+Tab / 托盘均复用） -->
+    <ApplicationIcon>assets\app.ico</ApplicationIcon>
+
+    <!-- 高 DPI 与应用初始化（ApplicationConfiguration.Initialize() 由此生成） -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationVisualStyles>true</ApplicationVisualStyles>
+    <ApplicationUseCompatibleTextRendering>false</ApplicationUseCompatibleTextRendering>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- wwwroot 下的静态资源随程序集一起复制到输出目录（index.html / style.css / calc-engine.js / bridge.js / tests.html） -->
+    <None Update="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 图标回退路径（ExtractAssociatedIcon 失败时读 <程序目录>\assets\app.ico） -->
+    <None Update="assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
+  </ItemGroup>
+
+</Project>

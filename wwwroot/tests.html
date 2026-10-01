@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>计算稿纸 · 表达式引擎自测</title>
+<style>
+  :root {
+    --font-ui: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    --font-mono: Consolas, "Cascadia Mono", "Courier New", monospace;
+    --fg: #2b2e33;
+    --fg-dim: #7c828b;
+    --line: #e6e8eb;
+    --bg: #f7f7f8;
+    --pass: #1f8a4c;
+    --fail: #c62f34;
+    --fail-bg: #fff5f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 28px 32px 60px;
+    background: #fff;
+    color: var(--fg);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  h1 { margin: 0 0 4px; font-size: 19px; font-weight: 600; letter-spacing: .2px; }
+  .sub { color: var(--fg-dim); font-size: 13px; margin-bottom: 22px; }
+
+  /* 顶部大字结论 */
+  .verdict {
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    padding: 18px 24px;
+    border-radius: 12px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    margin-bottom: 10px;
+  }
+  .verdict.pass { color: var(--pass); border-color: rgba(31, 138, 76, .25); background: rgba(31, 138, 76, .06); }
+  .verdict.fail { color: var(--fail); border-color: rgba(198, 47, 52, .28); background: var(--fail-bg); }
+  .meta { color: var(--fg-dim); font-size: 13px; margin-bottom: 20px; }
+  .meta button {
+    font: inherit; font-size: 12px; color: #4a4e55; background: #f3f4f6;
+    border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer;
+  }
+  .meta button:hover { background: #ebedf0; }
+
+  .fatal {
+    display: none; color: var(--fail); background: var(--fail-bg);
+    border: 1px solid rgba(198, 47, 52, .3); border-radius: 10px;
+    padding: 14px 18px; margin-bottom: 18px; font-size: 15px; font-weight: 600;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-weight: 600; color: var(--fg-dim); background: var(--bg); white-space: nowrap; }
+  td.num { color: var(--fg-dim); width: 44px; }
+  td.state { width: 62px; white-space: nowrap; font-weight: 600; }
+  td.state.ok { color: var(--pass); }
+  td.state.bad { color: var(--fail); }
+  .mono { font-family: var(--font-mono); font-size: 12.5px; word-break: break-all; }
+  tr.fail { background: var(--fail-bg); }
+  tr.fail td { color: var(--fail); }
+  tr.fail td.num { color: var(--fail); }
+  .empty-hint { color: var(--fg-dim); font-style: italic; }
+  tr.fail .empty-hint { color: var(--fail); }
+  .tag { color: var(--fg-dim); font-size: 12px; }
+  tr.fail .tag { color: var(--fail); }
+</style>
+</head>
+<body>
+
+<h1>计算稿纸 · 表达式引擎自测</h1>
+<div class="sub">直接双击本文件（file://）即可运行；加载 <span class="mono">calc-engine.js</span>，覆盖语法、优先级、角度制、错误分类与数字格式化。</div>
+
+<div class="verdict" id="verdict">运行中…</div>
+<div class="meta">
+  <span id="timestamp"></span>
+  <button type="button" id="rerun">重新运行</button>
+</div>
+
+<div class="fatal" id="fatal"></div>
+
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>结果</th>
+      <th>用例</th>
+      <th>输入</th>
+      <th>期望</th>
+      <th>实际</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<!-- 引擎：传统脚本（非 ES Module），file:// 下不会被 CORS 拦截 -->
+<script src="calc-engine.js"></script>
+<script>
+/* ==========================================================================
+   用例数据：kind='result' 用 CalcEngine.formatResult 比对；
+             kind='normalize' 比对 CalcEngine.normalize 的返回值。
+   每条 result 用例：expectText 为期望的 text；expectError 为期望的 error 分类。
+   ========================================================================== */
+var CALC_TEST_CASES = [
+  /* ---- 题面指定的 14 组核心用例 ---- */
+  { desc: '基础四则运算', kind: 'result', input: '55+88+7689*543', expectText: '4,175,270' },
+  { desc: '长链混合运算（含小数与除法）', kind: 'result', input: '4270-55+855+5525+88+66+4556+3.25*9825-5875/5+85+5369.55+83.45', expectText: '51,599.25' },
+  { desc: '幂运算参与求和', kind: 'result', input: '2^5+888+99*878.467', expectText: '87,888.233' },
+  { desc: '乘号别名 x', kind: 'result', input: '99x878.467', expectText: '86,968.233' },
+  { desc: '括号与幂优先级', kind: 'result', input: '(1+2)*(3+4)^2', expectText: '147' },
+  { desc: '幂高于一元负号：-2^2 = -(2^2)', kind: 'result', input: '-2^2', expectText: '-4' },
+  { desc: '指数可带负号：2^-1', kind: 'result', input: '2^-1', expectText: '0.5' },
+  { desc: '平方根函数 sqrt(16)', kind: 'result', input: 'sqrt(16)', expectText: '4' },
+  { desc: '角度制正弦 sin(30)', kind: 'result', input: 'sin(30)', options: { angleMode: 'deg' }, expectText: '0.5' },
+  { desc: '弧度制正弦 sin(pi/6)', kind: 'result', input: 'sin(pi/6)', options: { angleMode: 'rad' }, expectText: '0.5' },
+  { desc: '浮点误差归整 0.1+0.2', kind: 'result', input: '0.1+0.2', expectText: '0.3' },
+  { desc: '除零文案统一：1/0 = 除数不能为 0', kind: 'result', input: '1/0', expectError: 'math', expectText: '除数不能为 0' },
+  { desc: '负数开方属数学未定义', kind: 'result', input: 'sqrt(-1)', expectError: 'math', expectText: '无法计算' },
+  { desc: '语法不完整 55+', kind: 'result', input: '55+', expectError: 'syntax', expectText: '表达式错误' },
+  { desc: '括号未闭合 (1+2', kind: 'result', input: '(1+2', expectError: 'syntax', expectText: '表达式错误' },
+  { desc: '空串归为 empty（界面只显示 =，不显示文案）', kind: 'result', input: '', expectError: 'empty' },
+  { desc: '千分位开启', kind: 'result', input: '1000000', expectText: '1,000,000' },
+  { desc: '千分位关闭', kind: 'result', input: '1000000', options: { useGrouping: false }, expectText: '1000000' },
+  { desc: '全角输入（括号、加号、乘号）', kind: 'result', input: '（1＋2）×3', expectText: '9' },
+
+  /* ---- 其余硬性要求：错误分类、角度制、格式化边界 ---- */
+  { desc: 'tan(90) 角度制下无定义', kind: 'result', input: 'tan(90)', options: { angleMode: 'deg' }, expectError: 'math', expectText: '无法计算' },
+
+  /* ---- 整 90° 倍角的近零吸附（浮点残差归 0），以及不受影响的常规值 ---- */
+  { desc: '近零吸附：cos(90) 应显示 0（原为 6.12323399574e-17）', kind: 'result', input: 'cos(90)', options: { angleMode: 'deg' }, expectText: '0' },
+  { desc: '近零吸附：sin(180) 应显示 0（原为 1.22464679915e-16）', kind: 'result', input: 'sin(180)', options: { angleMode: 'deg' }, expectText: '0' },
+  { desc: '近零吸附：tan(180) 应显示 0（原为极小残差）', kind: 'result', input: 'tan(180)', options: { angleMode: 'deg' }, expectText: '0' },
+  { desc: '吸附不误伤：cos(0) = 1', kind: 'result', input: 'cos(0)', options: { angleMode: 'deg' }, expectText: '1' },
+  { desc: '吸附不误伤：cos(60) = 0.5', kind: 'result', input: 'cos(60)', options: { angleMode: 'deg' }, expectText: '0.5' },
+  { desc: '吸附不误伤：tan(45) = 1', kind: 'result', input: 'tan(45)', options: { angleMode: 'deg' }, expectText: '1' },
+
+  { desc: '非法运算符序列 1++*2', kind: 'result', input: '1++*2', expectError: 'syntax', expectText: '表达式错误' },
+  { desc: '未知标识符 abc', kind: 'result', input: 'abc', expectError: 'syntax', expectText: '表达式错误' },
+  { desc: '纯空白归为 empty', kind: 'result', input: '   ', expectError: 'empty' },
+  { desc: '全角空格与全角减号', kind: 'result', input: '10\u3000\uff0d\u30005', expectText: '5' },
+  { desc: '小数尾随零 4.500 → 4.5', kind: 'result', input: '4.500', expectText: '4.5' },
+  { desc: '负零显示为 0', kind: 'result', input: '-0', expectText: '0' },
+  { desc: '常量 pi', kind: 'result', input: 'pi', expectText: '3.14159265359' },
+  { desc: '常量 e', kind: 'result', input: 'e', expectText: '2.71828182846' },
+  { desc: '大数科学计数法 10^21', kind: 'result', input: '10^21', expectText: '1e+21' },
+  { desc: '科学计数法阈值下界（1e14 仍用普通写法并分组）', kind: 'result', input: '10^14', expectText: '100,000,000,000,000' },
+  { desc: '极小值科学计数法 10^-10', kind: 'result', input: '10^-10', expectText: '1e-10' },
+  { desc: '极小值展开为小数 10^-7', kind: 'result', input: '10^-7', expectText: '0.0000001' },
+
+  /* ---- normalize 归一化函数 ---- */
+  { desc: 'normalize：全角括号与乘号别名', kind: 'normalize', input: '（1＋2）×3', expectText: '(1+2)*3' },
+  { desc: 'normalize：字母 x 视为乘号', kind: 'normalize', input: '99x878.467', expectText: '99*878.467' },
+  { desc: 'normalize：删除空白，Unicode 减号与全角除号转半角', kind: 'normalize', input: '1 \u2212 2 \uff0f 4', expectText: '1-2/4' },
+  { desc: 'normalize：全角脱字符', kind: 'normalize', input: '2\uff3e3', expectText: '2^3' },
+
+  /* ==========================================================================
+     新增用例：后缀 ! 阶乘 / 后缀 % 百分比 / 二元 % 与 mod、rem /
+     log、ln；反三角函数（角度制与弧度制）；abs/round/floor/ceil；π、√
+     ========================================================================== */
+
+  /* ---- 1. 后缀阶乘 ! ---- */
+  { desc: '阶乘正常 5! = 120', kind: 'result', input: '5!', expectText: '120' },
+  { desc: '阶乘 0! = 1', kind: 'result', input: '0!', expectText: '1' },
+  { desc: '阶乘整数小数写法 3.0! = 6', kind: 'result', input: '3.0!', expectText: '6' },
+  { desc: '阶乘高于乘 2*3! = 12', kind: 'result', input: '2*3!', expectText: '12' },
+  { desc: '一元负号与阶乘 -3! = -(3!) = -6', kind: 'result', input: '-3!', expectText: '-6' },
+  { desc: '括号内阶乘 (2+3)! = 120', kind: 'result', input: '(2+3)!', expectText: '120' },
+  { desc: '非整数阶乘非法 2.5!', kind: 'result', input: '2.5!', expectError: 'math', expectText: '阶乘仅支持非负整数' },
+  { desc: '负数阶乘非法 (-3)!', kind: 'result', input: '(-3)!', expectError: 'math', expectText: '阶乘仅支持非负整数' },
+  { desc: '阶乘越界 171!', kind: 'result', input: '171!', expectError: 'math', expectText: '结果过大，超出计算范围' },
+  { desc: '阶乘边界 170! 仍在范围内', kind: 'result', input: '170!', expectText: '7.25741561531e+306' },
+
+  /* ---- 2. 后缀 % 百分比 与 二元 % 取模的自动区分 ---- */
+  { desc: '后缀百分比 50% = 0.5', kind: 'result', input: '50%', expectText: '0.5' },
+  { desc: '结尾单 % 视为后缀 10% = 0.1', kind: 'result', input: '10%', expectText: '0.1' },
+  { desc: '后缀百分比参与加法 200+10% = 200.1', kind: 'result', input: '200+10%', expectText: '200.1' },
+  { desc: '后缀百分比参与乘法 50%*2 = 1', kind: 'result', input: '50%*2', expectText: '1' },
+  { desc: '二元取模 10%3 = 1', kind: 'result', input: '10%3', expectText: '1' },
+  { desc: '括号内后缀 % 与外部二元 % 共存 (10%)%3 = 0.1', kind: 'result', input: '(10%)%3', expectText: '0.1' },
+  { desc: '负数取模符号随除数 -7%3 = 2', kind: 'result', input: '-7%3', expectText: '2' },
+  { desc: '百分比减号：7%-3 = 0.07-3 = -2.93（后缀百分比）', kind: 'result', input: '7%-3', expectText: '-2.93' },
+  { desc: '百分比后接减号按后缀 10%-3 = 0.1-3 = -2.9', kind: 'result', input: '10%-3', expectText: '-2.9' },
+  { desc: '后缀百分比参与减法 100-5% = 99.95', kind: 'result', input: '100-5%', expectText: '99.95' },
+  { desc: '百分比后接加号按后缀 10%+3 = 0.1+3 = 3.1', kind: 'result', input: '10%+3', expectText: '3.1' },
+  { desc: '两段百分比相加 50%+25% = 0.75', kind: 'result', input: '50%+25%', expectText: '0.75' },
+  { desc: '取模除数为 0 → 除数不能为 0', kind: 'result', input: '10%0', expectError: 'math', expectText: '除数不能为 0' },
+
+  /* ---- 3. mod / rem 四种符号组合 ---- */
+  { desc: 'mod 正正 mod(10,3) = 1', kind: 'result', input: 'mod(10,3)', expectText: '1' },
+  { desc: 'mod 负正 mod(-7,3) = 2', kind: 'result', input: 'mod(-7,3)', expectText: '2' },
+  { desc: 'mod 正负 mod(7,-3) = -2', kind: 'result', input: 'mod(7,-3)', expectText: '-2' },
+  { desc: 'mod 负负 mod(-7,-3) = -1', kind: 'result', input: 'mod(-7,-3)', expectText: '-1' },
+  { desc: 'rem 正正 rem(7,3) = 1', kind: 'result', input: 'rem(7,3)', expectText: '1' },
+  { desc: 'rem 负正 rem(-7,3) = -1', kind: 'result', input: 'rem(-7,3)', expectText: '-1' },
+  { desc: 'rem 正负 rem(7,-3) = 1', kind: 'result', input: 'rem(7,-3)', expectText: '1' },
+  { desc: 'rem 负负 rem(-7,-3) = -1', kind: 'result', input: 'rem(-7,-3)', expectText: '-1' },
+  { desc: 'rem 除数为 0 → 除数不能为 0', kind: 'result', input: 'rem(5,0)', expectError: 'math', expectText: '除数不能为 0' },
+  { desc: 'mod 除数为 0 → 除数不能为 0', kind: 'result', input: 'mod(5,0)', expectError: 'math', expectText: '除数不能为 0' },
+
+  /* ---- 4. log（10 为底）/ ln（自然对数）/ log(b,x) 与定义域 ---- */
+  { desc: 'log 以 10 为底 log(100) = 2', kind: 'result', input: 'log(100)', expectText: '2' },
+  { desc: 'ln 自然对数 ln(e) = 1', kind: 'result', input: 'ln(e)', expectText: '1' },
+  { desc: 'log 两参数 log(2,8) = 3', kind: 'result', input: 'log(2,8)', expectText: '3' },
+  { desc: 'log 真数定义域 log(0)', kind: 'result', input: 'log(0)', expectError: 'math', expectText: '对数的真数必须大于 0' },
+  { desc: 'ln 真数定义域 ln(-1)', kind: 'result', input: 'ln(-1)', expectError: 'math', expectText: '对数的真数必须大于 0' },
+  { desc: 'log 底数为 1 非法 log(1,8)', kind: 'result', input: 'log(1,8)', expectError: 'math', expectText: '对数的底数必须大于 0 且不等于 1' },
+  { desc: 'log 底数为负非法 log(-2,8)', kind: 'result', input: 'log(-2,8)', expectError: 'math', expectText: '对数的底数必须大于 0 且不等于 1' },
+  { desc: 'log 两参数真数非法优先报真数 log(2,-5)', kind: 'result', input: 'log(2,-5)', expectError: 'math', expectText: '对数的真数必须大于 0' },
+
+  /* ---- 5. 反三角函数：角度制 / 弧度制、别名与定义域 ---- */
+  { desc: '角度制 asin(0.5) = 30', kind: 'result', input: 'asin(0.5)', options: { angleMode: 'deg' }, expectText: '30' },
+  { desc: '角度制 acos(0.5) = 60', kind: 'result', input: 'acos(0.5)', options: { angleMode: 'deg' }, expectText: '60' },
+  { desc: '角度制 atan(1) = 45', kind: 'result', input: 'atan(1)', options: { angleMode: 'deg' }, expectText: '45' },
+  { desc: '弧度制 asin(0.5)（12 位有效数字归一化）', kind: 'result', input: 'asin(0.5)', options: { angleMode: 'rad' }, expectText: '0.523598775598' },
+  { desc: '弧度制 atan(1)（12 位有效数字归一化）', kind: 'result', input: 'atan(1)', options: { angleMode: 'rad' }, expectText: '0.785398163397' },
+  { desc: '别名 arcsin(0.5) 角度制 = 30', kind: 'result', input: 'arcsin(0.5)', options: { angleMode: 'deg' }, expectText: '30' },
+  { desc: '别名 arctan(1) 角度制 = 45', kind: 'result', input: 'arctan(1)', options: { angleMode: 'deg' }, expectText: '45' },
+  { desc: '别名 arccos(1) 角度制 = 0', kind: 'result', input: 'arccos(1)', options: { angleMode: 'deg' }, expectText: '0' },
+  { desc: 'atan 无定义域限制 atan(5) 角度制', kind: 'result', input: 'atan(5)', options: { angleMode: 'deg' }, expectText: '78.690067526' },
+  { desc: 'asin 定义域 asin(2)', kind: 'result', input: 'asin(2)', options: { angleMode: 'deg' }, expectError: 'math', expectText: '反正弦/反余弦的输入需在 -1 到 1 之间' },
+  { desc: 'acos 定义域 acos(-2)', kind: 'result', input: 'acos(-2)', options: { angleMode: 'deg' }, expectError: 'math', expectText: '反正弦/反余弦的输入需在 -1 到 1 之间' },
+
+  /* ---- 6. 通用函数 abs / round / floor / ceil ---- */
+  { desc: 'abs(-3.5) = 3.5', kind: 'result', input: 'abs(-3.5)', expectText: '3.5' },
+  { desc: 'round 半数远离 0 round(2.5) = 3', kind: 'result', input: 'round(2.5)', expectText: '3' },
+  { desc: 'round 半数远离 0 round(-2.5) = -3', kind: 'result', input: 'round(-2.5)', expectText: '-3' },
+  { desc: 'round 半数远离 0 round(0.5) = 1', kind: 'result', input: 'round(0.5)', expectText: '1' },
+  { desc: 'round 常规 round(2.4) = 2', kind: 'result', input: 'round(2.4)', expectText: '2' },
+  { desc: 'round 常规 round(-2.4) = -2', kind: 'result', input: 'round(-2.4)', expectText: '-2' },
+  { desc: 'floor(2.9) = 2', kind: 'result', input: 'floor(2.9)', expectText: '2' },
+  { desc: 'floor(-2.1) = -3', kind: 'result', input: 'floor(-2.1)', expectText: '-3' },
+  { desc: 'ceil(2.1) = 3', kind: 'result', input: 'ceil(2.1)', expectText: '3' },
+  { desc: 'ceil(-2.9) = -2', kind: 'result', input: 'ceil(-2.9)', expectText: '-2' },
+
+  /* ---- 7. 常量 π / pi 与根号 √ ---- */
+  { desc: '常量 π', kind: 'result', input: 'π', expectText: '3.14159265359' },
+  { desc: '常量 pi 与 π 等价', kind: 'result', input: 'pi', expectText: '3.14159265359' },
+  { desc: '根号 √(16) = 4', kind: 'result', input: '√(16)', expectText: '4' },
+  { desc: '根号 √(2) 与 sqrt 等价', kind: 'result', input: '√(2)', expectText: '1.41421356237' },
+  { desc: '根号负数开方未定义 √(-1)', kind: 'result', input: '√(-1)', expectError: 'math', expectText: '无法计算' },
+
+  /* ---- 8. 优先级组合 ---- */
+  { desc: '后缀绑定高于 ^：2^3! = 2^(3!) = 64', kind: 'result', input: '2^3!', expectText: '64' },
+  { desc: '后缀绑定高于 ^：5!^2 = (5!)^2 = 14,400', kind: 'result', input: '5!^2', expectText: '14,400' },
+  { desc: '后缀百分比与乘：50%*2 = 1', kind: 'result', input: '50%*2', expectText: '1' },
+
+  /* ---- 9. 函数必须带括号 / 参数个数校验 ---- */
+  { desc: '函数必须带括号（log 100）', kind: 'result', input: 'log 100', expectError: 'syntax', expectText: '表达式错误' },
+  { desc: '函数必须带括号（sin 30）', kind: 'result', input: 'sin 30', expectError: 'syntax', expectText: '表达式错误' },
+  { desc: '多参数函数参数个数不符 mod(1)', kind: 'result', input: 'mod(1)', expectError: 'syntax', expectText: '表达式错误' },
+  { desc: 'normalize：新运算符 % 与 ! 原样保留', kind: 'normalize', input: '10%3+5!', expectText: '10%3+5!' },
+  { desc: 'normalize：π 与 √ 原样保留（由词法层识别）', kind: 'normalize', input: '√(16)+π', expectText: '√(16)+π' },
+
+  /* ---- 10. 立方根 cbrt / ∛（支持负数，负数有实根） ---- */
+  { desc: '立方根 cbrt(27) = 3', kind: 'result', input: 'cbrt(27)', expectText: '3' },
+  { desc: '立方根支持负数 cbrt(-8) = -2', kind: 'result', input: 'cbrt(-8)', expectText: '-2' },
+  { desc: '立方根 cbrt(0) = 0', kind: 'result', input: 'cbrt(0)', expectText: '0' },
+  { desc: '立方根无理数 cbrt(2)（12 位有效数字归一化）', kind: 'result', input: 'cbrt(2)', expectText: '1.25992104989' },
+  { desc: '立方根参与幂运算 cbrt(8)^2 = 4', kind: 'result', input: 'cbrt(8)^2', expectText: '4' },
+  { desc: '立方根符号写法 ∛(27) = 3', kind: 'result', input: '∛(27)', expectText: '3' },
+  { desc: '立方根符号写法支持负数 ∛(-8) = -2', kind: 'result', input: '∛(-8)', expectText: '-2' },
+  { desc: '立方根缺参数 cbrt()', kind: 'result', input: 'cbrt()', expectError: 'syntax', expectText: '表达式错误' },
+  { desc: '立方根参数个数不符 cbrt(1,2)', kind: 'result', input: 'cbrt(1,2)', expectError: 'syntax', expectText: '表达式错误' },
+  { desc: 'normalize：∛ 原样保留（由词法层识别）', kind: 'normalize', input: '∛(27)+√(16)', expectText: '∛(27)+√(16)' }
+];
+
+/* --------------------------------------------------------------------------
+   运行器
+   -------------------------------------------------------------------------- */
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* 空白的输入在表格里用可读的占位符展示 */
+function showInput(s) {
+  if (s === '') return '<span class="empty-hint">(空字符串)</span>';
+  if (/^\s+$/.test(s)) return '<span class="empty-hint">(纯空白)</span>';
+  return esc(s);
+}
+
+/* 期望值的文字描述 */
+function expectLabel(c) {
+  if (c.kind === 'normalize') return esc(c.expectText);
+  var parts = [];
+  if (c.expectError) parts.push('error=' + c.expectError);
+  if (c.expectText !== undefined) parts.push('text=' + (c.expectText === '' ? '(空)' : c.expectText));
+  return esc(parts.join('，'));
+}
+
+/* 实际结果的文字描述（与 expectLabel 采用同一口径，便于逐字比对） */
+function actualLabel(c, r) {
+  if (c.kind === 'normalize') return esc(r.actual);
+  if (r.threw) return '<span class="tag">抛出异常：</span>' + esc(r.actual);
+  if (r.ok) return esc('text=' + r.actual);
+  return esc('error=' + r.actual + (r.text ? '，text=' + r.text : ''));
+}
+
+/* 单个 result 用例：绝不让异常逃逸，保证页面永远能完整渲染 */
+function runResultCase(c) {
+  var out = { threw: false, pass: false, ok: false, error: '', text: '', actual: '' };
+  var r;
+  try {
+    r = window.CalcEngine.formatResult(c.input, c.options);
+  } catch (e) {
+    out.threw = true;
+    out.actual = (e && e.message) ? e.message : String(e);
+    return out;
+  }
+  out.ok = !!r.ok;
+  out.error = r.ok ? '' : String(r.error);
+  out.text = r.ok ? String(r.text) : (r.text === undefined ? '' : String(r.text));
+
+  /* 判定口径：
+     · 给了 expectError 的是错误类用例 —— 要求 ok===false 且 error 相符；
+       若同时给了 expectText，还要求错误文案相符。
+     · 未给 expectError 的是成功类用例 —— 要求 ok===true 且 text 相符。 */
+  var pass;
+  if (c.expectError !== undefined) {
+    pass = (r.ok === false) && (out.error === c.expectError);
+    if (c.expectText !== undefined) pass = pass && (out.text === c.expectText);
+  } else {
+    pass = (r.ok === true) && (out.text === c.expectText);
+  }
+
+  out.actual = r.ok ? out.text : out.error;
+  out.pass = pass;
+  return out;
+}
+
+/* 单个用例（含 normalize 类型） */
+function runOne(c) {
+  var out;
+  if (c.kind === 'normalize') {
+    out = { threw: false, pass: false, actual: '' };
+    try {
+      var got = window.CalcEngine.normalize(c.input);
+      out.actual = String(got);
+      out.pass = (out.actual === c.expectText);
+    } catch (e) {
+      out.threw = true;
+      out.actual = (e && e.message) ? e.message : String(e);
+    }
+    return out;
+  }
+  return runResultCase(c);
+}
+
+function optLabel(c) {
+  var o = c.options;
+  var parts = [];
+  if (o) {
+    if (o.angleMode) parts.push('angleMode=' + o.angleMode);
+    if (o.useGrouping === false) parts.push('useGrouping=false');
+  }
+  return parts.length ? '（' + parts.join('，') + '）' : '';
+}
+
+function runAll() {
+  var fatal = document.getElementById('fatal');
+  var verdict = document.getElementById('verdict');
+
+  if (typeof window.CalcEngine === 'undefined') {
+    fatal.style.display = 'block';
+    fatal.innerHTML = '未能加载 calc-engine.js —— 请确认它与 tests.html 位于同一目录（wwwroot/），且文件名大小写正确。';
+    verdict.className = 'verdict fail';
+    verdict.textContent = '引擎加载失败';
+    return;
+  }
+  fatal.style.display = 'none';
+
+  var cases = CALC_TEST_CASES;
+  var passCount = 0;
+  var rows = '';
+
+  for (var i = 0; i < cases.length; i++) {
+    var c = cases[i];
+    var res;
+    try {
+      res = runOne(c);
+    } catch (e) {
+      /* 兜底：任何意外都不允许中断整页渲染 */
+      res = { threw: true, pass: false, actual: (e && e.message) ? e.message : String(e) };
+    }
+    if (res.pass) passCount++;
+
+    rows += '<tr class="' + (res.pass ? 'ok' : 'fail') + '">' +
+      '<td class="num">' + (i + 1) + '</td>' +
+      '<td class="state ' + (res.pass ? 'ok' : 'bad') + '">' + (res.pass ? '通过' : '失败') + '</td>' +
+      '<td>' + esc(c.desc) + optLabel(c) + '</td>' +
+      '<td class="mono">' + showInput(c.input) + '</td>' +
+      '<td class="mono">' + expectLabel(c) + '</td>' +
+      '<td class="mono">' + actualLabel(c, res) + '</td>' +
+      '</tr>';
+  }
+
+  document.getElementById('tbody').innerHTML = rows;
+
+  var total = cases.length;
+  var allPass = (passCount === total);
+  verdict.className = 'verdict ' + (allPass ? 'pass' : 'fail');
+  verdict.textContent = '通过 ' + passCount + ' / 共 ' + total;
+
+  var d = new Date();
+  document.getElementById('timestamp').innerHTML =
+    '运行时间：' + d.toLocaleString() + '　·　失败项已用红色标出（列：输入 / 期望 / 实际）';
+}
+
+document.getElementById('rerun').onclick = runAll;
+runAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,1221 @@
+/* ==========================================================================
+   计算稿纸 · 视觉令牌与样式（设计稿 / 正式界面共用）
+   ========================================================================== */
+
+:root {
+  /* 页面与卡片 */
+  --desk-bg: #eceef1;
+  --window-bg: #ffffff;
+  --radius-window: 14px;
+  --shadow-window: 0 24px 60px rgba(20, 24, 31, .18), 0 4px 14px rgba(20, 24, 31, .06);
+
+  /* 标题栏 */
+  --titlebar-h: 44px;
+  --titlebar-border: #f0f1f3;
+  --title-text: #2f3237;
+  --title-icon: linear-gradient(140deg, #ffb95e 0%, #f7902e 100%);
+  --winbtn-fg: #7c828b;
+  --winbtn-hover-bg: #f2f3f5;
+  --winbtn-close-hover: #e5484d;
+
+  /* 条格 */
+  --row-bg-even: #f5f5f6;
+  --row-bg-odd: #eeeef0;
+  --row-bg-active: #eae7e1;
+  --row-divider: rgba(20, 24, 31, .08);
+  --pad-row-x: 28px;
+
+  /* 文本 */
+  --expr-color: #3a3d42;
+  --expr-placeholder: #aeaaa3;
+  --result-color: #2b2e33;
+  --result-eq: #9aa0a8;
+  --font-ui: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --font-expr: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+  --size-expr: 29px;
+  --line-expr: 1.5;
+  --size-result: 29px;
+
+  /* 备注 */
+  --note-pill-bg: #8b9096;
+  --note-pill-fg: #ffffff;
+  --note-add-fg: rgba(58, 61, 66, .5);
+  --note-add-fg-hover: rgba(58, 61, 66, .68);
+
+  /* 底部功能栏 */
+  --toolbar-h: 60px;
+  --toolbar-border: #f0f1f3;
+  --tool-fg: #4a4e55;
+  --tool-hover-bg: #f3f4f6;
+  --tool-active-bg: #ebedf0;
+  --sep-color: #e6e8eb;
+  --status-fg: #a2a7ae;
+  --status-dot: #7ec48a;
+
+  /* 焦点 */
+  --focus-ring: 0 0 0 2px rgba(247, 144, 46, .28);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  color: var(--expr-color);
+  background: var(--desk-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- 设计稿：灰底 + 卡片窗口 ---------- */
+.desk {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+
+.window {
+  width: min(980px, 100%);
+  height: min(880px, calc(100vh - 80px));
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  background: var(--window-bg);
+  border-radius: var(--radius-window);
+  box-shadow: var(--shadow-window);
+  overflow: hidden;
+}
+
+/* ---------- 应用模式（WebView2 宿主内铺满窗口） ---------- */
+body.app-mode { background: var(--window-bg); }
+body.app-mode .desk { padding: 0; min-height: 100%; }
+body.app-mode .window {
+  width: 100%;
+  height: 100vh;
+  min-height: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ==========================  标题栏  ========================== */
+.titlebar {
+  height: var(--titlebar-h);
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--titlebar-border);
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.titlebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.brand-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--title-icon);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  box-shadow: 0 1px 2px rgba(215, 124, 20, .35);
+}
+
+.brand-name {
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: .2px;
+  color: var(--title-text);
+  white-space: nowrap;
+}
+
+.titlebar__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+}
+
+.win-btn {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--winbtn-fg);
+  cursor: default;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s ease, color .12s ease;
+}
+.win-btn:hover { background: var(--winbtn-hover-bg); color: #3a3d42; }
+.win-btn--close:hover { background: var(--winbtn-close-hover); color: #fff; }
+
+/* ==========================  条格纸  ========================== */
+.paper {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #cfd3d8 transparent;
+}
+.paper::-webkit-scrollbar { width: 10px; }
+.paper::-webkit-scrollbar-thumb {
+  background: #cfd3d8;
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
+}
+.paper::-webkit-scrollbar-thumb:hover { background: #b9bec5; background-clip: content-box; }
+
+.row {
+  padding: 24px var(--pad-row-x) 18px;
+  background: var(--row-bg-even);
+  border-bottom: 1px solid var(--row-divider);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.row:nth-child(even) { background: var(--row-bg-odd); }
+.row:last-child { border-bottom: 0; }
+
+.row--active {
+  background: var(--row-bg-active) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5);
+}
+
+/* 算式文本 */
+.row__expr {
+  font-family: var(--font-expr);
+  font-size: var(--size-expr);
+  line-height: var(--line-expr);
+  color: var(--expr-color);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .2px;
+  word-break: break-word;
+  white-space: pre-wrap;
+  outline: none;
+}
+.row__expr--placeholder { color: var(--expr-placeholder); }
+
+/* 结果 */
+.row__result {
+  align-self: flex-end;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: var(--size-result);
+  line-height: 1.2;
+  color: var(--result-color);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .2px;
+}
+.row__eq { color: var(--result-eq); font-weight: 400; }
+.row__value { font-weight: 400; }
+.row__result--idle .row__eq { color: #bdb9b3; }
+.row__result--error .row__value { color: #c2453f; font-size: 15px; letter-spacing: 0; }
+
+/* 备注区（左下角） */
+.row__foot {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  margin-top: -4px;
+}
+
+.note-add {
+  border: 0;
+  background: transparent;
+  width: 24px;
+  height: 24px;
+  margin-left: -4.5px;
+  padding: 0;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--note-add-fg);
+  cursor: default;
+  transition: color .12s ease, background .12s ease;
+}
+.note-add svg { width: 15px; height: 15px; display: block; }
+.row:hover .note-add { color: var(--note-add-fg-hover); }
+.note-add:hover { color: var(--note-add-fg-hover); background: rgba(20, 24, 31, .06); }
+
+.note-pill {
+  border: 0;
+  border-radius: 5px;
+  background: var(--note-pill-bg);
+  color: var(--note-pill-fg);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  line-height: 1;
+  padding: 4px 9px;
+  cursor: default;
+  transition: background .12s ease;
+}
+.note-pill:hover { background: #7b8087; }
+
+/* ==========================  底部功能栏  ========================== */
+.toolbar {
+  height: var(--toolbar-h);
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  padding: 0 18px;
+  border-top: 1px solid var(--toolbar-border);
+  background: var(--window-bg);
+}
+
+.toolbar__status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--status-fg);
+}
+.status-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-dot);
+  flex: 0 0 auto;
+}
+
+.toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  justify-self: center;
+}
+
+/* 文字按钮（备用形态） */
+.tool {
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  color: var(--tool-fg);
+  cursor: default;
+  white-space: nowrap;
+  transition: background .12s ease, color .12s ease;
+}
+.tool:hover { background: var(--tool-hover-bg); color: #2b2e33; }
+.tool:active { background: var(--tool-active-bg); }
+.tool.is-danger:hover { background: #fdeeee; color: #c2453f; }
+
+/* 图标按钮（主形态，贴近参考图） */
+.tool--icon {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tool-fg);
+}
+.tool--icon svg { width: 22px; height: 22px; display: block; }
+.tool--icon:hover { background: var(--tool-hover-bg); color: #2b2e33; }
+.tool--icon:active { background: var(--tool-active-bg); }
+.tool--danger:hover { background: #fdeeee; color: #c2453f; }
+
+.sep {
+  width: 1px;
+  height: 20px;
+  background: var(--sep-color);
+  margin: 0 10px;
+  flex: 0 0 auto;
+}
+
+.toolbar__spacer { justify-self: end; }
+
+/* ==========================  设置浮层（设计稿预览用）  ========================== */
+.settings-card {
+  position: absolute;
+  right: 22px;
+  bottom: 68px;
+  width: 268px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(20, 24, 31, .18), 0 2px 8px rgba(20, 24, 31, .06);
+  border: 1px solid #f0f1f3;
+  padding: 14px 16px 12px;
+  font-size: 13.5px;
+  color: #3a3d42;
+}
+.settings-card__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2f3237;
+  margin-bottom: 10px;
+}
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+}
+.settings-item + .settings-item { border-top: 1px solid #f4f5f7; }
+
+.switch {
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: #d8dbe0;
+  position: relative;
+  flex: 0 0 auto;
+  transition: background .15s ease;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .22);
+  transition: transform .15s ease;
+}
+.switch.is-on { background: #f7902e; }
+.switch.is-on::after { transform: translateX(16px); }
+
+.segmented {
+  display: inline-flex;
+  background: #f1f2f4;
+  border-radius: 8px;
+  padding: 2px;
+}
+.segmented span {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: #6b7079;
+}
+.segmented span.is-on {
+  background: #fff;
+  color: #2b2e33;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+}
+
+/* ==========================  编辑态（Task 4 追加）  ==========================
+   说明：以上为已定稿的视觉令牌与规则，此处仅追加"可编辑控件"所需的适配样式，
+   不修改任何既有规则与颜色。 */
+
+/* 算式输入控件：由 <textarea> 承担，去掉表单控件默认外观，随内容自动增高。
+   注意：`font: inherit` 用于摆脱浏览器对表单控件内置字体的干预，随后立即还原
+   设计稿的算式字体（字号/字体族/行高），确保视觉与静态设计稿完全一致。 */
+.row__expr {
+  border: 0;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  display: block;
+  font: inherit;
+  font-family: var(--font-expr);
+  font-size: var(--size-expr);
+  line-height: var(--line-expr);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .2px;
+  color: var(--expr-color);
+  word-break: break-word;
+  white-space: pre-wrap;
+  caret-color: var(--expr-color);
+}
+.row__expr::placeholder { color: var(--expr-placeholder); opacity: 1; }
+
+/* 备注编辑输入框：与 .note-pill 视觉对齐（同字号、同内边距、同圆角） */
+.note-input {
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  line-height: 1;
+  color: var(--expr-color);
+  background: #fff;
+  border: 1px solid #e2e4e8;
+  border-radius: 5px;
+  padding: 4px 9px;
+  width: 200px;
+  outline: none;
+  transition: border-color .12s ease;
+}
+.note-input:focus { border-color: #c9ccd2; }
+
+/* 备注胶囊过长时截断为省略号 */
+.note-pill {
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================  状态提示错误态（Task 5 追加）  ==========================
+   说明：仅追加"自动保存失败"时的红点红字，不改动上方任何既有令牌与规则。 */
+.toolbar__status.is-error .status-text { color: #c2453f; }
+.toolbar__status.is-error .status-dot { background: #c2453f; }
+
+/* ==========================  设置浮层可交互适配（Task 6 追加）  ==========================
+   说明：仅追加让"设计稿预览用"的设置浮层真正可交互所需的最小规则（定位祖先、
+   标题行布局、关闭按钮、可点击手感、宿主不可用时的弱化态），不改动上方任何
+   既有规则与视觉令牌（颜色 / 字号 / 圆角 / 阴影 / 图标形状均保持不变）。 */
+
+/* .settings-card 为绝对定位，需为其找到定位祖先 */
+#app.window { position: relative; }
+
+/* [hidden] 显式兜底，确保任何情况下都能隐藏 */
+.settings-card[hidden] { display: none; }
+
+/* 标题行：左「设置」右关闭按钮 */
+.settings-card__title--row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* 关闭按钮：沿用窗口按钮的观感（颜色 / 悬停背景取既有令牌），但不使用 .win-btn 类，
+   避免被 bridge.js 的窗口按钮接线误伤 */
+.settings-close {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--winbtn-fg);
+  cursor: default;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s ease, color .12s ease;
+}
+.settings-close:hover { background: var(--winbtn-hover-bg); color: #3a3d42; }
+
+/* 可点击控件的手感（不改颜色，仅去文本选择与默认光标） */
+.segmented span,
+.switch { cursor: default; }
+
+.segmented span,
+.switch,
+.settings-card__title--row { user-select: none; }
+
+/* 宿主不可用（普通浏览器预览）时，开机自启动开关呈弱化态 */
+.switch.is-disabled { opacity: .45; }
+
+/* ==========================  视觉微调（Task 7 追加）  ==========================
+   说明：仅在文件末尾追加三处微调所需的覆盖规则（同特异性、靠后生效），
+   不修改上方任何既有规则与视觉令牌（颜色 / 字号 / 圆角 / 阴影 / 图标形状均不变）。
+
+   1) 设置浮层去掉硬边框：与主卡片（.window，纯阴影无边框）基调一致。
+      原规则为 border-box + `border: 1px solid #f0f1f3`；若只置 border:0，
+      内容盒会左右各外扩 1px、总高矮 2px，导致实测的内容左缘（767）与
+      268×178 外形改变。故同步把 padding 各方向 +1px 补偿：
+      内缩量由「1px 边框 + padding 14/16/12」改为「0 边框 + padding 15/17/13」，
+      内容盒尺寸与位置完全不变，仅去掉硬边框。 */
+.settings-card {
+  border: 0;
+  padding: 15px 17px 13px;
+}
+
+/* 2) 设置三项行高统一：以最高的「三角函数」行（含分段控件，实测 44px）为基准，
+      给每行加 min-height: 44px（border-box）。两个开关行由约 37px 增至 44px，
+      三行等高、纵向节奏整齐，且开关点击目标更大；既有 align-items: center
+      保证分段控件与开关仍垂直居中。未采用「把 .segmented 压到开关行高」的方案，
+      因为那需同时缩小控件内边距与字号，会削弱其与设计稿分段控件尺寸的一致性，
+      改动面更大、更易牵动既有观感。 */
+.settings-item {
+  min-height: 44px;
+}
+
+/* 3) 底栏状态与图标组之间加呼吸：.toolbar 为三列网格
+      （status minmax(0,1fr) / actions auto 居中 / spacer minmax(0,1fr)），
+      原本行内无间隙，状态列右缘与图标组左缘相接，长错误文案会贴到齿轮图标。
+      改用 column-gap: 16px：中间列左右各得 16px 间隙。因两侧列同为 1fr、
+      左右内边距相等（padding: 0 18px），中间列仍严格水平居中，
+      不会破坏图标组的居中。未用 .toolbar__actions 的 margin-left，
+      因其 justify-self: center 会让整组右移半个 margin，破坏居中。 */
+.toolbar {
+  column-gap: 16px;
+}
+
+/* ==========================  本轮改动追加（Task 8）  ==========================
+   说明：仅在文件末尾追加覆盖规则；不改动上方任何既有规则与视觉令牌。
+   1) 标题栏图标改为用户提供的 PNG（<img>）：
+        去掉原渐变方块背景与投影（PNG 自带透明圆角 alpha，故 CSS 不再加圆角），
+        按 object-fit: contain 缩放到既有的 20×20；flex:0 0 auto 由原规则保留。
+   2) 全局提示气泡（tooltip.js 创建，替代原生 title）。
+   3) 设置浮层改为窗口正中，小窗口下可滚动不溢出。
+   4) Win10 区域裁剪圆角后系统阴影消失 → 补一条极淡内描边界定卡片边缘。
+   5) 全局唤醒组的新控件（组合键胶囊 / 重置按钮 / 冲突红字提示）。 */
+
+/* ---------- 1) 标题栏图标（图片形态） ---------- */
+.brand-icon {
+  display: block;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  object-fit: contain;
+}
+
+/* ---------- 2) 全局提示气泡 ---------- */
+.tip-bubble {
+  position: fixed;
+  z-index: 2147483000;
+  pointer-events: none;
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: #3a3d42;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.4;
+  /* pre-line：保留文本里的换行符（→ 多行气泡），但不强制换行 —— 无换行符的
+     单行文案仍按内容自适应成一行；宽度取最长行（shrink-to-fit 的 max-content），
+     高度自然容纳多行。 */
+  white-space: pre-line;
+  box-shadow: 0 2px 8px rgba(20, 24, 31, .22);
+}
+
+/* ---------- 3) 设置浮层：窗口正中 ---------- */
+#settings-card {
+  left: 50%;
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  max-height: calc(100% - 40px);
+  overflow-y: auto;
+}
+
+/* ---------- 4) Win10 无系统阴影的视觉补偿（仅宿主内） ---------- */
+body.app-mode .window {
+  box-shadow: inset 0 0 0 1px rgba(20, 24, 31, .06);
+}
+
+/* ---------- 5) 全局唤醒组的新控件 ---------- */
+.hotkey-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hotkey-pill {
+  min-width: 66px;
+  padding: 3px 10px;
+  border: 1px solid #e6e8eb;
+  border-radius: 6px;
+  background: #f7f7f8;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  color: #2b2e33;
+  text-align: center;
+  cursor: default;
+  transition: border-color .12s ease, background .12s ease, color .12s ease;
+}
+.hotkey-pill:hover { background: #f1f2f4; }
+.hotkey-pill.is-recording {
+  border-color: #f7902e;
+  background: #fff8f0;
+  color: #d77c14;
+}
+
+.hotkey-reset {
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: #7c828b;
+  cursor: default;
+  transition: background .12s ease, color .12s ease;
+}
+.hotkey-reset:hover { background: #f1f2f4; color: #2b2e33; }
+
+/* 组合键冲突提示：红字；夹在两项之间时补回分隔线，保持行节奏 */
+.settings-hint {
+  padding: 2px 0 6px;
+  font-size: 12px;
+  color: #c2453f;
+}
+.settings-hint[hidden] { display: none; }
+.settings-hint + .settings-item { border-top: 1px solid #f4f5f7; }
+
+/* ==========================  本轮改动追加（Task 9）  ==========================
+   说明：仅在文件末尾追加覆盖规则；不改动上方任何既有规则与视觉令牌。
+   1) 全局快捷键录制的轻提示（胶囊下方一行淡红小字）。
+   2) 应用内确认弹窗：结构与视觉复用 .settings-card（白底 / 圆角 12px / 无边框 /
+      柔和阴影 / 同款内边距），窗口正中，无遮罩；新增危险按钮与按钮行样式。 */
+
+/* ---------- 1) 录制轻提示（淡红小字，2 秒后由 JS 隐藏） ---------- */
+#settings-hotkey-hint { color: #cf8f8b; }
+
+/* ---------- 2) 应用内确认弹窗 ---------- */
+/* 与设置面板同一套居中定位（#settings-card 用的是 id 选择器，这里用类补上） */
+.confirm-card {
+  left: 50%;
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+}
+.confirm-card[hidden] { display: none; }
+
+.confirm-card__body {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #4a4e55;
+  margin: 2px 0 16px;
+}
+
+.confirm-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirm-btn {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 8px;
+  cursor: default;
+  transition: background .12s ease, color .12s ease, box-shadow .12s ease;
+}
+.confirm-btn:focus { outline: none; box-shadow: var(--focus-ring); }
+
+/* 次要按钮（取消）：默认焦点落在此处 */
+.confirm-btn--ghost { background: #f3f4f6; color: #4a4e55; }
+.confirm-btn--ghost:hover { background: #ebedf0; color: #2b2e33; }
+
+/* 危险按钮（确认清空）：红色危险态 */
+.confirm-btn--danger { background: #e5484d; color: #fff; }
+.confirm-btn--danger:hover { background: #d93a3f; }
+
+/* ---------- 3) 确认弹窗尺寸约束（与 #settings-card 完全同款） ----------
+   仅在文件末尾追加：小窗口下弹窗不超过窗口高度并可内部滚动，避免溢出。
+   取值与 #settings-card 的既有规则一致（max-height: calc(100% - 40px);
+   overflow-y: auto），不改动上方任何既有规则。 */
+.confirm-card {
+  max-height: calc(100% - 40px);
+  overflow-y: auto;
+}
+
+/* ==========================  本轮改动追加（Task 10）  ==========================
+   说明：仅在文件末尾追加覆盖规则；不改动上方任何既有规则与视觉令牌。
+   1) 长算式换行修复（需求 8）：.row__expr 上的 word-break: break-word（Blink 在
+      <textarea> 上等价于 overflow-wrap: break-word）会让断行位置变得不正确 ——
+      实测同一段长算式在 437px 宽下被断为 26/5/28/2 个字符，第二行只有 73px
+      （可用 437px），右侧留下 364px 空白，而另一行却顶到最右。
+      改为 word-break: break-all（任意字符间都是断点）后实测为 26/28/7，
+      行宽 423/420/104，非末行基本占满，不再有异常留白。
+   2) 表达式输入区宽度锁定（需求 8）：显式占满该行可用宽度，不随内容自适应，
+      换行行同样如此（align-self: stretch + width/max-width/min-width 兜底）。
+   3) 滚动条槽位常驻（需求 6b）：.paper 为 overflow-y: auto，垂直滚动条时有时无
+      会让内容宽度在 10px 间跳变 —— 宽度一变换行数就变、行高再变，缩放拖动时
+      容易来回抖动。scrollbar-gutter: stable 常驻预留槽位，宽度恒定。
+   4) 「删除稿纸」禁用态（需求 5）：未绑定文件时按钮降透明度并取消悬停/按压
+      反馈（仍可悬停出气泡，气泡文案由 persist.js 改写 data-tip）。 */
+
+/* ---------- 1) 长算式换行：断点改为"任意字符之间"，保证逐行占满 ---------- */
+.row__expr {
+  word-break: break-all;
+}
+
+/* ---------- 2) 表达式输入区始终占满该行可用宽度 ---------- */
+.row__expr {
+  display: block;
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* ---------- 3) 滚动条槽位常驻，避免宽度跳变引发换行/行高抖动 ---------- */
+.paper {
+  scrollbar-gutter: stable;
+}
+
+/* ---------- 4) 「删除稿纸」禁用外观（aria-disabled，不用原生 disabled） ---------- */
+.tool[aria-disabled="true"] {
+  opacity: .38;
+}
+.tool[aria-disabled="true"]:hover,
+.tool[aria-disabled="true"]:active {
+  background: transparent;
+  color: var(--tool-fg);
+}
+.tool--danger[aria-disabled="true"]:hover {
+  background: transparent;
+  color: var(--tool-fg);
+}
+
+/* ==========================  本轮改动追加（Task 11）  ==========================
+   说明：仅在文件末尾追加覆盖规则；不改动上方任何既有规则与视觉令牌。
+   1) 底部「当前稿纸文件名」行：位于左下角状态提示（绿点 + 文字）的正上方，
+      小字号、灰色、单行，超长以省略号截断（容器 min-width:0）。
+   2) 「已复制」临时气泡（.tip-bubble--flash）：鲜亮浅绿底 + 深绿字 + 淡绿阴影，
+      与深灰底的一般提示明显区分；普通提示不受影响。
+   3) 悬停抑制（html.hover-off）：窗口隐藏/最小化/失焦/标签页切走时中和所有
+      :hover 视觉，避免"恢复窗口后鼠标并未停在按钮上却残留悬停底色"；
+      真实鼠标移动/移入后由 JS 移除该类，恢复正常悬停。 */
+
+/* ---------- 1) 底部「当前稿纸文件名」行 ---------- */
+.toolbar__info {
+  min-width: 0;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+.toolbar__filename {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--status-fg);
+  opacity: .92;
+}
+
+/* ---------- 2) 「已复制」临时气泡配色 ---------- */
+.tip-bubble--flash {
+  background: #C9F7DC;
+  color: #12653A;
+  box-shadow: 0 4px 14px rgba(16, 120, 72, .22);
+}
+
+/* ---------- 3) 悬停抑制（html.hover-off）----------
+   以下规则均带 html.hover-off 前缀，特异性高于上方既有 :hover 规则，
+   仅把"悬停态"还原为"未悬停"的取值，不改动默认外观。 */
+html.hover-off .win-btn:hover { background: transparent; color: var(--winbtn-fg); }
+html.hover-off .win-btn--close:hover { background: transparent; color: var(--winbtn-fg); }
+html.hover-off .settings-close:hover { background: transparent; color: var(--winbtn-fg); }
+html.hover-off .tool:hover,
+html.hover-off .tool--icon:hover { background: transparent; color: var(--tool-fg); }
+html.hover-off .tool.is-danger:hover,
+html.hover-off .tool--danger:hover { background: transparent; color: var(--tool-fg); }
+html.hover-off .row:hover .note-add,
+html.hover-off .note-add:hover { color: var(--note-add-fg); background: transparent; }
+html.hover-off .note-pill:hover { background: var(--note-pill-bg); }
+html.hover-off .hotkey-pill:not(.is-recording):hover { background: #f7f7f8; color: #2b2e33; }
+html.hover-off .hotkey-reset:hover { background: transparent; color: #7c828b; }
+html.hover-off .confirm-btn--ghost:hover { background: #f3f4f6; color: #4a4e55; }
+html.hover-off .confirm-btn--danger:hover { background: #e5484d; color: #fff; }
+
+/* ==========================  本轮改动追加（Task 12）  ==========================
+   说明：仅在文件末尾追加覆盖规则；不改动上方任何既有规则与视觉令牌，也不改
+   底部工具栏的布局与高度。
+   背景：宿主在 Win10 下已把底部非客户区归零，页面延伸到窗口下缘；此前最下方
+   那条 DWM 边线（实测色 rgb(240,241,242)）在白色背景下不可见，其余三边可见。
+   做法：在底栏 .toolbar（其下缘即页面/窗口下缘）补一条 1px 内描边，颜色取
+   #F0F1F2（= rgb(240,241,242)，与其它三边一致）。
+   · 用 inset box-shadow 而非 border-bottom：不占布局、不改变既有 60px 高度
+     （height: var(--toolbar-h) 保持不变），不引入横向滚动条或高度溢出。
+   · 选择器限定 body.app-mode：不影响浏览器预览（设计稿卡片模式）。
+   · 底栏内容（左侧信息 / 中部按钮组 / 右侧占位）均竖直居中、不触及下缘，
+     故这条内描边不会被遮住；底部 r=8 圆角由宿主区域裁剪形成，直线描边两端
+     会被圆角裁剪干净，不会破坏圆角观感。 */
+body.app-mode .toolbar {
+  box-shadow: inset 0 -1px 0 #F0F1F2;
+}
+
+/* ==========================  本轮改动追加（Task 13）  ==========================
+   说明：仅在文件末尾追加覆盖规则；不改动上方任何既有规则与视觉令牌，也不改
+   底部工具栏的布局与高度（height: var(--toolbar-h) 即 60px 保持不变）。
+   1) 「已复制」临时气泡（.tip-bubble--flash）：底色由浅绿加深为深绿、文字保持纯白，
+      阴影同步改为深绿色调；普通提示（深灰底白字）不受影响。
+   2) 底栏左右两条 1px 内描边：整个窗口的 1px 内描边画在 .window 上，但底栏的
+      不透明白底会盖住左右与下侧那条描边（此前仅用 inset 0 -1px 0 补了下边线）。
+      这里给底栏补齐左右两条，颜色统一取 rgba(20, 24, 31, .06)——即 .window 那条
+      内描边的原色（其在白底上合成后约等于 #F0F1F2，故上下左右观感连续、无断口）。
+      · 仍用 inset box-shadow：不占布局、不改变既有高度、不引入横向滚动条；
+        inset 描边绘制在边框盒内侧，不受底栏 0 18px 内边距与圆角裁剪影响。 */
+
+/* ---------- 1) 「已复制」临时气泡：深绿底 + 白字 + 深绿阴影 ---------- */
+.tip-bubble--flash {
+  background: #15803D;
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(21, 128, 61, .28);
+}
+
+/* ---------- 2) 底栏左右两条 1px 内描边（与下边线同色，白底上连续无断口） ---------- */
+body.app-mode .toolbar {
+  box-shadow: inset 0 -1px 0 rgba(20, 24, 31, .06),
+              inset 1px 0 0 rgba(20, 24, 31, .06),
+              inset -1px 0 0 rgba(20, 24, 31, .06);
+}
+
+/* ==========================  本轮改动追加（运算菜单抽屉）  ==========================
+   说明：仅在文件末尾追加覆盖规则；不改动上方任何既有规则与视觉令牌，也不改
+   标题栏 / 条格纸 / 底栏的既有高度与布局。
+   1) 工作区（.workspace）：把「条格纸」改为弹性行容器，右侧容纳运算菜单抽屉。
+   2) 抽屉（.menu-drawer）：宽度恒定 280px（不随窗口尺寸变化），默认收起
+      （width:0 + opacity:0 + overflow:hidden），展开时从右边缘滑出并淡入
+      （时长 / 缓动见文件末尾追加块：本改造改为 320ms 平滑缓出，内容延迟 70ms 淡入）；
+      因宽度参与布局，抽屉是「推开稿纸」而非遮挡 —— 稿纸可用宽 = 工作区宽 − 280px。
+      · 抽屉内部内容固定 280px 宽：动画期间内容不重排，仅被外层裁剪，观感为「滑出」。
+      · 展开时用 inset box-shadow 补一条左缘 1px 分隔线，不占布局、不影响 280px 宽度。
+   3) 抽屉内部：标题栏 + 可滚动的按钮流式布局（圆角矩形气泡，窗口太矮时内部滚动）。
+   4) 排序模式：气泡可拖动样式（grab + 虚线描边）、拖起的浮层气泡、插入位置指示条。 */
+
+/* ---------- 1) 工作区：左稿纸 + 右抽屉 ---------- */
+.workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+.workspace > .paper { min-width: 0; }
+
+/* ---------- 2) 抽屉外壳（默认收起） ---------- */
+.menu-drawer {
+  flex: 0 0 auto;
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;   /* 收起时不可见：同时屏蔽命中与键盘 Tab 进入 */
+  display: flex;
+  flex-direction: column;
+  background: var(--window-bg);
+  transition: width .19s cubic-bezier(.4, 0, .2, 1), opacity .19s ease, visibility .19s;
+}
+.workspace.menu-open .menu-drawer {
+  width: 280px;
+  opacity: 1;
+  visibility: visible;
+  box-shadow: inset 1px 0 0 var(--titlebar-border);
+}
+
+/* ---------- 3) 抽屉内部：标题栏 + 滚动按钮流 ---------- */
+.menu-drawer__head {
+  flex: 0 0 auto;
+  width: 280px;
+  padding: 13px 16px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  user-select: none;
+}
+.menu-drawer__title {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  color: #6b7079;
+}
+.menu-drawer__hint {
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: #d77c14;
+}
+.menu-drawer__hint[hidden] { display: none; }
+
+.menu-drawer__body {
+  flex: 1 1 auto;
+  width: 280px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #cfd3d8 transparent;
+  padding: 2px 12px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+}
+.menu-drawer__body::-webkit-scrollbar { width: 10px; }
+.menu-drawer__body::-webkit-scrollbar-thumb {
+  background: #cfd3d8;
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
+}
+.menu-drawer__body::-webkit-scrollbar-thumb:hover { background: #b9bec5; background-clip: content-box; }
+
+/* 分组分区：一条占满整行的细分隔线，令下一组从新行开始。
+   注意：flex-basis 取 100%（= 容器内容宽）时不能再加左右外边距，否则会超出
+   容器宽度、被 overflow-y:auto 连带产生横向滚动条；故只留纵向外边距。 */
+.menu-group-break {
+  flex: 0 0 100%;
+  height: 1px;
+  margin: 5px 0 1px;
+  background: var(--sep-color);
+}
+
+/* ---------- 4) 运算气泡（圆角矩形） ---------- */
+.menu-chip {
+  flex: 0 0 auto;
+  min-width: 40px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: #f3f4f6;
+  color: #4a4e55;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+  transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+.menu-chip:hover { background: #ebedf0; color: #2b2e33; }
+.menu-chip:active { background: #e3e5e9; }
+.menu-chip:focus { outline: none; }
+.menu-chip:focus-visible { box-shadow: var(--focus-ring); }
+
+/* ---------- 5) 排序模式 ---------- */
+.workspace.menu-sorting .menu-chip {
+  cursor: grab;
+  border-color: #c9ccd2;
+  border-style: dashed;
+}
+.workspace.menu-sorting .menu-chip:hover { background: #f3f4f6; color: #4a4e55; }
+.workspace.menu-sorting .menu-chip:active { background: #f3f4f6; }
+
+/* 拖起的气泡：脱离流布局跟随指针 */
+.menu-chip--floating {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  cursor: grabbing;
+  border-style: solid;
+  border-color: #f7902e;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(20, 24, 31, .22);
+}
+
+/* 插入位置指示条 */
+.menu-drop-indicator {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 4px;
+  min-height: 30px;
+  margin: 0 2px;
+  border-radius: 3px;
+  background: #f7902e;
+}
+
+/* ---------- 6) 菜单键与底栏右端占位 ---------- */
+/* 底栏第三列（.toolbar__spacer，justify-self: end）承载菜单键：
+   竖向居中、右对齐；按钮右缘距窗口右缘 18px、下缘 11px（底栏 0 18px 内边距 +
+   60px 行高内居中 38px 按钮），均大于缩放热区带宽 7px，不吃右/下/右下角热区。 */
+.toolbar__spacer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.menu-toggle[aria-expanded="true"] { background: var(--tool-active-bg); color: #2b2e33; }
+html.hover-off .menu-chip:hover { background: #f3f4f6; color: #4a4e55; }
+html.hover-off .menu-toggle[aria-expanded="true"] { background: var(--tool-active-bg); color: #2b2e33; }
+
+/* ==========================  本轮改动追加（运算菜单交互改造）  ==========================
+   说明：仅在文件末尾追加覆盖规则；不改动上方任何既有规则与视觉令牌，也不改标题栏 /
+   条格纸 / 底栏的既有高度与布局。对应 7 项交互改造：
+     1) 抽屉开合动效放慢到 320ms + 平滑缓出，抽屉内容延迟淡入；
+     2) 排序模式底部「重置 / 保存」按钮；
+     3) 抽屉内的应用风格右键自绘菜单（扁平 / 圆角 / 阴影）；
+     4) 排序模式：行首淡色抓手（⠿）、整行拖动的水平插入指示线、被拖行的弱化态。 */
+
+/* ---------- 1) 抽屉开合：320ms 平滑缓出（覆盖既有 .19s） ---------- */
+.menu-drawer {
+  transition: width 320ms cubic-bezier(.22, .61, .36, 1),
+              opacity 320ms cubic-bezier(.22, .61, .36, 1),
+              visibility 320ms;
+}
+
+/* 抽屉内容稍微延迟淡入（70ms），与外层滑出叠加，观感更丝滑 */
+.menu-drawer__head,
+.menu-drawer__body,
+.menu-drawer__foot {
+  opacity: 0;
+  transition: opacity 320ms cubic-bezier(.22, .61, .36, 1) 70ms;
+}
+.workspace.menu-open .menu-drawer__head,
+.workspace.menu-open .menu-drawer__body,
+.workspace.menu-open .menu-drawer__foot {
+  opacity: 1;
+}
+
+/* ---------- 2) 排序模式底部「重置 / 保存」 ---------- */
+/* 本轮调整：两个按钮在抽屉展开区域（280px）内**水平居中**（原为右对齐 flex-end）。
+   只改主轴对齐方式：左右内边距仍为对称的 12px，故内容盒中点 = 抽屉中点（140px）；
+   纵向位置由 padding 与 align-items:center 决定，完全不受影响（top 与改动前一致）。 */
+.menu-drawer__foot {
+  flex: 0 0 auto;
+  width: 280px;
+  padding: 10px 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.menu-drawer__foot[hidden] { display: none; }
+
+.menu-sort-btn {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 8px;
+  cursor: default;
+  transition: background .12s ease, color .12s ease;
+}
+.menu-sort-btn--ghost { background: #f3f4f6; color: #4a4e55; }
+.menu-sort-btn--ghost:hover { background: #ebedf0; color: #2b2e33; }
+.menu-sort-btn--primary { background: #f7902e; color: #fff; }
+.menu-sort-btn--primary:hover { background: #e07f1c; }
+html.hover-off .menu-sort-btn--ghost:hover { background: #f3f4f6; color: #4a4e55; }
+html.hover-off .menu-sort-btn--primary:hover { background: #f7902e; color: #fff; }
+
+/* ---------- 3) 抽屉内右键自绘菜单（与设置浮层 / 确认弹窗同款：扁平 / 圆角 / 阴影） ---------- */
+.menu-context {
+  position: fixed;
+  z-index: 2147483000;
+  min-width: 136px;
+  padding: 6px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(20, 24, 31, .18), 0 2px 8px rgba(20, 24, 31, .06);
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  color: #3a3d42;
+  user-select: none;
+}
+.menu-context[hidden] { display: none; }
+
+.menu-context__item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font: inherit;
+  font-size: 13.5px;
+  color: #3a3d42;
+  text-align: left;
+  cursor: default;
+  transition: background .12s ease, color .12s ease;
+}
+.menu-context__item:hover { background: #f3f4f6; color: #2b2e33; }
+.menu-context__item:focus { outline: none; }
+html.hover-off .menu-context__item:hover { background: transparent; color: #3a3d42; }
+
+/* ---------- 4) 排序模式：行首抓手 / 整行拖动指示 / 被拖行弱化 ---------- */
+/* 抓手（⠿）：仅排序模式可见，低对比度；默认 display:none 不占常规布局 */
+.menu-row-handle {
+  display: none;
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 14px;
+  align-items: center;
+  justify-content: center;
+  color: rgba(58, 61, 66, .3);
+  font-size: 12px;
+  line-height: 1;
+  user-select: none;
+  cursor: default;
+}
+.workspace.menu-sorting .menu-row-handle {
+  display: inline-flex;
+  cursor: grab;
+}
+
+/* 整行拖动的行级插入指示：一条占满抽屉宽度的水平线（放在行与行之间） */
+.menu-row-indicator {
+  flex: 0 0 100%;
+  height: 3px;
+  margin: 2px 0;
+  border-radius: 2px;
+  background: #f7902e;
+}
+
+/* 被拖整行的弱化态 */
+.workspace.menu-sorting .menu-chip--row-dragging { opacity: .45; }
+html.hover-off .menu-chip--row-dragging { opacity: .45; }
+
+/* ==========================  本轮改动追加（标题栏窗口置顶按钮）  ==========================
+   说明：仅在文件末尾追加覆盖规则；不改动上方任何既有规则与视觉令牌，也不改标题栏高度。
+   标题栏右侧按钮组顺序为「置顶 / 最小化 / 关闭」，置顶按钮位于最小化按钮左侧。
+   · 图标：线框图钉（圆头梯形钉帽 + 一根针），常态整体旋转 45°（针尖朝左下），
+     置顶时转为竖直（针尖朝下）。
+   · 状态：未置顶 → 透明底 + 常态灰线稿；置顶 → 底色填充 #F4B343 + 白线稿。
+   · 切换带约 180ms 平滑过渡（旋转 + 背景 / 颜色），不瞬间跳变。
+   图标为 14×14 元素（对角线 ≈19.8 < 按钮 30，旋转不会溢出按钮）。 */
+
+.win-btn--pin {
+  /* 覆盖 .win-btn 的 .12s，改为 180ms：背景与颜色（图钉染色）平滑过渡 */
+  transition: background 180ms ease, color 180ms ease;
+}
+
+/* 图钉线稿：常态倾斜 45°（针尖朝左下），180ms 平滑旋转 */
+.win-btn--pin .win-btn__icon {
+  display: block;
+  transition: transform 180ms ease;
+  transform: rotate(45deg);
+}
+
+/* 置顶态：橙黄底 + 白色图钉、竖直 */
+.win-btn--pin.is-pinned {
+  background: #F4B343;
+  color: #fff;
+}
+.win-btn--pin.is-pinned .win-btn__icon {
+  transform: rotate(0deg);
+}
+
+/* 置顶态悬停：略微加深（保持橙黄观感，与既有按钮悬停反馈一致） */
+.win-btn--pin.is-pinned:hover {
+  background: #E5A63A;
+  color: #fff;
+}
+
+/* 悬停抑制（html.hover-off）：置顶态底色不被中和掉 */
+html.hover-off .win-btn--pin.is-pinned:hover {
+  background: #F4B343;
+  color: #fff;
+}

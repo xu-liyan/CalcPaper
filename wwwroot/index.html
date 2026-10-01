@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>计算稿纸</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23f7902e'/%3E%3Cpath d='M6 17c2.2-4.6 4.6-7.2 7.2-7.8M10 19c1.4-3.6 3.2-6 5.4-7.2M15 17.5c.9-1.6 2-2.8 3.3-3.6' stroke='%23fff' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!--
+  说明：本文件既是「设计稿」，也是正式程序的界面底座。
+  · 设计稿模式（浏览器直接打开）：.desk 呈现灰底 + 卡片窗口，便于查看阴影与圆角。
+  · 应用模式（WebView2 宿主加载时，body 会带 app-mode 类）：铺满窗口，无灰底。
+-->
+<div class="desk">
+  <div id="app" class="window">
+
+    <!-- 标题栏 -->
+    <header class="titlebar" id="titlebar">
+      <div class="titlebar__brand">
+        <img class="brand-icon" src="assets/icon.png" alt="">
+        <span class="brand-name">计算稿纸</span>
+      </div>
+      <div class="titlebar__actions">
+        <button class="win-btn win-btn--pin" type="button" data-tip="窗口置顶" aria-label="窗口置顶" aria-pressed="false">
+          <svg class="win-btn__icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7.8 3.1C7.8 2.55 8.25 2.1 8.8 2.1H15.2C15.75 2.1 16.2 2.55 16.2 3.1C16.2 4.7 15.4 5.7 14.55 7.5C14.55 8.3 18.1 12.1 18.1 12.9C18.1 14.34 17.79 15.5 17.9 15.5H6.1C5.99 15.5 5.9 14.34 5.9 12.9C5.9 12.1 9.45 8.3 9.45 7.5C8.6 5.7 7.8 4.7 7.8 3.1Z"/>
+            <path d="M12 15.5V21.9"/>
+          </svg>
+        </button>
+        <button class="win-btn win-btn--min" type="button" data-tip="最小化" aria-label="最小化">
+          <svg viewBox="0 0 12 12" width="12" height="12"><path d="M2 6h8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+        <button class="win-btn win-btn--close" type="button" data-tip="关闭" aria-label="关闭">
+          <svg viewBox="0 0 12 12" width="12" height="12"><path d="M2.6 2.6l6.8 6.8M9.4 2.6l-6.8 6.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 工作区：左侧条格纸 + 右侧运算菜单抽屉（抽屉推开稿纸而非遮挡）。
+         条格由 wwwroot/app.js 动态渲染；抽屉由 wwwroot/menu.js 控制。 -->
+    <div class="workspace" id="workspace">
+      <!-- 条格纸主体（条格由 wwwroot/app.js 动态渲染） -->
+      <main class="paper" id="paper"></main>
+
+      <!-- 运算菜单抽屉（默认收起；宽度恒定 280px，从右边缘滑出 + 淡入） -->
+      <aside class="menu-drawer" id="menu-drawer" aria-hidden="true" aria-label="运算与函数">
+        <div class="menu-drawer__head">
+          <span class="menu-drawer__title" id="menu-drawer-title">运算与函数</span>
+          <span class="menu-drawer__hint" id="menu-drawer-hint" hidden>排序中 · 拖动气泡调整本行顺序，拖动行首抓手或行尾空白调整整行</span>
+        </div>
+        <div class="menu-drawer__body" id="menu-chips"></div>
+        <!-- 排序模式底部：重置 / 保存（默认隐藏，仅排序模式可见；位于抽屉底、菜单键上方） -->
+        <div class="menu-drawer__foot" id="menu-drawer-foot" hidden>
+          <button class="menu-sort-btn menu-sort-btn--ghost" id="menu-sort-reset" type="button">重置</button>
+          <button class="menu-sort-btn menu-sort-btn--primary" id="menu-sort-save" type="button">保存</button>
+        </div>
+      </aside>
+    </div>
+
+    <!-- 底部功能栏 -->
+    <footer class="toolbar">
+      <!-- 左下角信息区：上方一行「当前稿纸文件名」，下方一行状态提示（绿点 + 文字）。
+           文件名与状态文字均由 wwwroot/persist.js 刷新。 -->
+      <div class="toolbar__info">
+        <div class="toolbar__filename" id="paper-filename">当前稿纸：临时稿纸</div>
+        <div class="toolbar__status">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span class="status-text">已自动保存 15:32</span>
+        </div>
+      </div>
+      <div class="toolbar__actions">
+        <button class="tool tool--icon" type="button" data-tip="设置" aria-label="设置" data-action="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <circle cx="12" cy="12" r="5.5"/>
+            <circle cx="12" cy="12" r="2.1"/>
+            <path d="M17.5 12h2.6M12 17.5v2.6M6.5 12H3.9M12 6.5V3.9M15.9 15.9l1.84 1.84M8.1 15.9l-1.84 1.84M15.9 8.1l1.84-1.84M8.1 8.1 6.26 6.26" stroke-width="2.4"/>
+          </svg>
+        </button>
+        <span class="sep" aria-hidden="true"></span>
+        <button class="tool tool--icon" type="button" data-tip="另存稿纸" aria-label="另存稿纸" data-action="saveAs">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="16" height="16" rx="2.4"/>
+            <rect x="8.2" y="4.8" width="7.6" height="4.8" rx="0.8"/>
+            <rect x="7.4" y="13.6" width="9.2" height="6.2" rx="1.2"/>
+          </svg>
+        </button>
+        <span class="sep" aria-hidden="true"></span>
+        <button class="tool tool--icon" type="button" data-tip="加载稿纸" aria-label="加载稿纸" data-action="open">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.2 7.8c0-1 .8-1.8 1.8-1.8h3.2c.5 0 1 .2 1.4.6l1 1.1h6.4c1 0 1.8.8 1.8 1.8v7.1c0 1-.8 1.8-1.8 1.8H6c-1 0-1.8-.8-1.8-1.8z"/>
+          </svg>
+        </button>
+        <span class="sep" aria-hidden="true"></span>
+        <button class="tool tool--icon" type="button" data-tip="新建稿纸" aria-label="新建稿纸" data-action="new">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4.2" y="4.2" width="15.6" height="15.6" rx="3.6"/>
+            <path d="M12 8.6v6.8M8.6 12h6.8"/>
+          </svg>
+        </button>
+        <span class="sep" aria-hidden="true"></span>
+        <button class="tool tool--icon tool--danger" type="button" data-tip="删除稿纸" aria-label="删除稿纸" aria-disabled="true" data-action="deletePaper">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.6 6.6h14.8"/>
+            <path d="M9.2 6.6V5a1.4 1.4 0 0 1 1.4-1.4h2.8A1.4 1.4 0 0 1 14.8 5v1.6"/>
+            <path d="M6.6 6.6l.9 12.1a1.7 1.7 0 0 0 1.7 1.6h5.6a1.7 1.7 0 0 0 1.7-1.6l.9-12.1"/>
+            <path d="M10.3 10.2v6.4M13.7 10.2v6.4"/>
+          </svg>
+        </button>
+      </div>
+      <!-- 右下角运算菜单键（三条横杠，风格与左侧底栏图标一致；由 wwwroot/menu.js 接线）。
+           位置为底栏右端，距窗口右缘 18px、下缘 11px，避开右/下/右下角的缩放热区。 -->
+      <div class="toolbar__spacer">
+        <button class="tool tool--icon menu-toggle" id="menu-toggle" type="button"
+                data-tip="运算符号" aria-label="运算菜单" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <path d="M4.5 7.5h15"/>
+            <path d="M4.5 12h15"/>
+            <path d="M4.5 16.5h15"/>
+          </svg>
+        </button>
+      </div>
+    </footer>
+
+    <!-- 设置浮层（默认隐藏；显隐与回显由 wwwroot/settings.js 控制）
+         复用 style.css 中既有的 .settings-card / .settings-item / .segmented / .switch 类 -->
+    <div class="settings-card" id="settings-card" hidden>
+      <div class="settings-card__title settings-card__title--row">
+        <span>设置</span>
+        <button class="settings-close" id="settings-close" type="button" data-tip="关闭设置" aria-label="关闭设置">
+          <svg viewBox="0 0 12 12" width="12" height="12"><path d="M2.6 2.6l6.8 6.8M9.4 2.6l-6.8 6.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <div class="settings-item">
+        <span>三角函数</span>
+        <div class="segmented" id="settings-angle">
+          <span id="settings-angle-deg" data-angle="deg">角度</span>
+          <span id="settings-angle-rad" data-angle="rad">弧度</span>
+        </div>
+      </div>
+
+      <div class="settings-item">
+        <span>结果千分位</span>
+        <span class="switch" id="settings-grouping" role="switch" aria-checked="true" aria-label="结果千分位" tabindex="0" data-tip="结果千分位"></span>
+      </div>
+
+      <div class="settings-item">
+        <span>开机自启动</span>
+        <span class="switch" id="settings-boot" role="switch" aria-checked="false" aria-label="开机自启动" tabindex="0" data-tip="开机自启动"></span>
+      </div>
+
+      <!-- 全局快捷键（本轮改为单值）：可录制的取值胶囊 + 重置为 Alt+C -->
+      <div class="settings-item">
+        <span>全局快捷键</span>
+        <span class="hotkey-box">
+          <button class="hotkey-pill" id="settings-hotkey-key" type="button" data-tip="点击后按下新的快捷键">未设置</button>
+          <button class="hotkey-reset" id="settings-hotkey-reset" type="button" data-tip="重置为 Alt+C" aria-label="重置为 Alt+C">重置</button>
+        </span>
+      </div>
+
+      <div class="settings-hint" id="settings-hotkey-hint" hidden></div>
+      <div class="settings-hint" id="settings-hotkey-error" hidden></div>
+    </div>
+
+    <!-- 应用内确认弹窗（默认隐藏；结构与视觉复用设置面板，由 wwwroot/confirm.js 控制。
+         标题由 ConfirmBox.open 的第三个参数按场景改写） -->
+    <div class="settings-card confirm-card" id="confirm-card" hidden role="dialog" aria-labelledby="confirm-title">
+      <div class="settings-card__title" id="confirm-title">删除稿纸</div>
+      <div class="confirm-card__body" id="confirm-message">确定删除当前稿纸文件吗？文件会被放入回收站（可从回收站恢复），界面将回到临时稿纸。</div>
+      <div class="confirm-card__actions">
+        <button class="confirm-btn confirm-btn--ghost" id="confirm-cancel" type="button">取消</button>
+        <button class="confirm-btn confirm-btn--danger" id="confirm-confirm" type="button">确认删除</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script src="bridge.js"></script>
+<script src="calc-engine.js"></script>
+<script src="app.js"></script>
+<script src="tooltip.js"></script>
+<script src="confirm.js"></script>
+<script src="persist.js"></script>
+<script src="settings.js"></script>
+<script src="menu.js"></script>
+</body>
+</html>
